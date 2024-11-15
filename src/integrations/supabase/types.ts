@@ -9,103 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      agent_details: {
-        Row: {
-          charges: string | null
-          id: string
-          is_verified: boolean | null
-          rating: number | null
-          rating_count: number | null
-          specialization: string | null
-          total_reviews: number | null
-          working_days: string | null
-          working_hours: string | null
-        }
-        Insert: {
-          charges?: string | null
-          id: string
-          is_verified?: boolean | null
-          rating?: number | null
-          rating_count?: number | null
-          specialization?: string | null
-          total_reviews?: number | null
-          working_days?: string | null
-          working_hours?: string | null
-        }
-        Update: {
-          charges?: string | null
-          id?: string
-          is_verified?: boolean | null
-          rating?: number | null
-          rating_count?: number | null
-          specialization?: string | null
-          total_reviews?: number | null
-          working_days?: string | null
-          working_hours?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_details_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       appointments: {
         Row: {
           agent_id: string | null
-          appointment_type: string
           created_at: string
           customer_id: string | null
           id: string
           payment_status: string | null
-          property: string
           requested_date: string
           requested_time: string
           status: string | null
         }
         Insert: {
           agent_id?: string | null
-          appointment_type: string
           created_at?: string
           customer_id?: string | null
           id?: string
           payment_status?: string | null
-          property: string
           requested_date: string
           requested_time: string
           status?: string | null
         }
         Update: {
           agent_id?: string | null
-          appointment_type?: string
           created_at?: string
           customer_id?: string | null
           id?: string
           payment_status?: string | null
-          property?: string
           requested_date?: string
           requested_time?: string
           status?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "appointments_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agent_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       escrow_payments: {
         Row: {
@@ -145,114 +80,47 @@ export type Database = {
           },
         ]
       }
-      messages: {
+      users: {
         Row: {
-          chat_room_id: string | null
-          contact: string | null
+          about_me: string | null
+          charges: number | null
           created_at: string
-          id: number
-          sender_id: string | null
-        }
-        Insert: {
-          chat_room_id?: string | null
-          contact?: string | null
-          created_at?: string
-          id?: number
-          sender_id?: string | null
-        }
-        Update: {
-          chat_room_id?: string | null
-          contact?: string | null
-          created_at?: string
-          id?: number
-          sender_id?: string | null
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          about: string | null
-          created_at: string
-          district: string | null
+          district: string
           full_name: string
           id: string
-          state: string | null
-          type: Database["public"]["Enums"]["user_type"]
-          wallet_id: string | null
+          region: string
+          role: Database["public"]["Enums"]["user_role"]
+          wallet_id: string
+          working_days: string | null
+          working_hours: string | null
         }
         Insert: {
-          about?: string | null
+          about_me?: string | null
+          charges?: number | null
           created_at?: string
-          district?: string | null
+          district: string
           full_name: string
           id: string
-          state?: string | null
-          type: Database["public"]["Enums"]["user_type"]
-          wallet_id?: string | null
+          region: string
+          role: Database["public"]["Enums"]["user_role"]
+          wallet_id: string
+          working_days?: string | null
+          working_hours?: string | null
         }
         Update: {
-          about?: string | null
+          about_me?: string | null
+          charges?: number | null
           created_at?: string
-          district?: string | null
+          district?: string
           full_name?: string
           id?: string
-          state?: string | null
-          type?: Database["public"]["Enums"]["user_type"]
-          wallet_id?: string | null
+          region?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          wallet_id?: string
+          working_days?: string | null
+          working_hours?: string | null
         }
         Relationships: []
-      }
-      reviews: {
-        Row: {
-          agent_id: string | null
-          appointment_id: string | null
-          comment: string | null
-          created_at: string
-          customer_id: string | null
-          id: string
-          rating: number | null
-        }
-        Insert: {
-          agent_id?: string | null
-          appointment_id?: string | null
-          comment?: string | null
-          created_at?: string
-          customer_id?: string | null
-          id?: string
-          rating?: number | null
-        }
-        Update: {
-          agent_id?: string | null
-          appointment_id?: string | null
-          comment?: string | null
-          created_at?: string
-          customer_id?: string | null
-          id?: string
-          rating?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reviews_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agent_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_appointment_id_fkey"
-            columns: ["appointment_id"]
-            isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
@@ -265,6 +133,7 @@ export type Database = {
       }
     }
     Enums: {
+      user_role: "customer" | "agent"
       user_type: "customer" | "agent"
     }
     CompositeTypes: {
