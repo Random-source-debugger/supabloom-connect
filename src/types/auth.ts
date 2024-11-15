@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const baseSchema = z.object({
+const baseSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -9,7 +9,7 @@ export const baseSchema = z.object({
   walletId: z.string().min(1, "Wallet ID is required"),
 });
 
-export const agentSchema = baseSchema.extend({
+const agentSchema = baseSchema.extend({
   charges: z.string().refine(
     (val) => {
       const num = parseFloat(val);
@@ -24,8 +24,10 @@ export const agentSchema = baseSchema.extend({
   workingDays: z.enum(["working days", "weekends", "full week"]),
 });
 
-export const customerSchema = baseSchema;
+const customerSchema = baseSchema;
 
 export type CustomerFormData = z.infer<typeof customerSchema>;
 export type AgentFormData = z.infer<typeof agentSchema>;
-export type FormData = CustomerFormData | AgentFormData;
+export type FormData = AgentFormData | CustomerFormData;
+
+export { agentSchema, customerSchema };

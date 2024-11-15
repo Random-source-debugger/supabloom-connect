@@ -2,21 +2,20 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import BaseFields from "./BaseFields";
 import AgentFields from "./AgentFields";
-import { agentSchema, customerSchema, type FormData } from "@/types/auth";
+import { agentSchema, customerSchema, type FormData, type AgentFormData } from "@/types/auth";
 
 const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const formSchema = z.object(role === "agent" ? agentSchema.shape : customerSchema.shape);
+  const formSchema = role === "agent" ? agentSchema : customerSchema;
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -48,11 +47,12 @@ const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
             region: values.region,
             district: values.district,
             wallet_id: values.walletId,
+            role,
             ...(role === "agent" && {
-              charges: values.charges,
-              about_me: (values as any).aboutMe,
-              working_hours: (values as any).workingHours,
-              working_days: (values as any).workingDays,
+              charges: (values as AgentFormData).charges,
+              about_me: (values as AgentFormData).aboutMe,
+              working_hours: (values as AgentFormData).workingHours,
+              working_days: (values as AgentFormData).workingDays,
             }),
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
