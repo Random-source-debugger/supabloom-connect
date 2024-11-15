@@ -16,7 +16,7 @@ const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const formSchema = z.object(role === "agent" ? agentSchema : customerSchema);
+  const formSchema = z.object(role === "agent" ? agentSchema.shape : customerSchema.shape);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
