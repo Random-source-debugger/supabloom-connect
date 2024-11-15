@@ -79,88 +79,55 @@ const Bookings = () => {
   };
 
   const handlePayment = async (appointment: Appointment) => {
-    const { error } = await supabase.from("escrow_payments").insert({
-      appointment_id: appointment.id,
-      amount: appointment.agent.charges,
-    });
+    try {
+      const response = await supabase.functions.invoke('escrow-payment', {
+        body: { appointment_id: appointment.id, action: 'pay' }
+      });
 
-    if (error) {
+      if (response.error) throw new Error(response.error.message);
+
+      toast({
+        title: "Payment initiated",
+        description: "The payment is now in escrow.",
+      });
+      refetch();
+    } catch (error) {
       toast({
         title: "Failed to process payment",
         description: error.message,
         variant: "destructive",
       });
-      return;
     }
-
-    const { error: updateError } = await supabase
-      .from("appointments")
-      .update({
-        payment_status: "pending",
-      })
-      .eq("id", appointment.id);
-
-    if (updateError) {
-      toast({
-        title: "Failed to update payment status",
-        description: updateError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Payment initiated",
-      description: "The payment is now in escrow.",
-    });
-    refetch();
   };
 
   const handlePaymentConfirmation = async (
     appointment: Appointment,
     success: boolean
   ) => {
-    const { error } = await supabase
-      .from("escrow_payments")
-      .update({
-        status: success ? "completed" : "refunded",
-        released_at: new Date().toISOString(),
-      })
-      .eq("appointment_id", appointment.id);
+    try {
+      const response = await supabase.functions.invoke('escrow-payment', {
+        body: {
+          appointment_id: appointment.id,
+          action: success ? 'complete' : 'refund'
+        }
+      });
 
-    if (error) {
+      if (response.error) throw new Error(response.error.message);
+
+      toast({
+        title: success ? "Payment completed" : "Payment refunded",
+        description: success
+          ? "The payment has been released to the agent."
+          : "The payment has been refunded to your wallet.",
+      });
+      refetch();
+    } catch (error) {
       toast({
         title: "Failed to process payment confirmation",
         description: error.message,
         variant: "destructive",
       });
-      return;
     }
-
-    const { error: updateError } = await supabase
-      .from("appointments")
-      .update({
-        payment_status: success ? "paid" : "refunded",
-        status: success ? "completed" : "unsuccessful",
-      })
-      .eq("id", appointment.id);
-
-    if (updateError) {
-      toast({
-        title: "Failed to update appointment status",
-        description: updateError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: success ? "Payment completed" : "Payment refunded",
-      description: success
-        ? "The payment has been released to the agent."
-        : "The payment has been refunded to your wallet.",
-    });
-    refetch();
   };
 
   return (

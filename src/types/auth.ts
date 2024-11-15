@@ -1,12 +1,20 @@
 import { z } from "zod";
 
+const isValidEthereumAddress = (address: string) => {
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
+};
+
 const baseSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   region: z.string().min(1, "Region is required"),
   district: z.string().min(1, "District is required"),
-  walletId: z.string().min(1, "Wallet ID is required"),
+  walletId: z.string()
+    .min(1, "Wallet ID is required")
+    .refine(isValidEthereumAddress, {
+      message: "Invalid Ethereum wallet address",
+    }),
 });
 
 const agentSchema = baseSchema.extend({
