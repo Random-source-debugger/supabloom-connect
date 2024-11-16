@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agents: {
+        Row: {
+          about_me: string | null
+          charges: number
+          created_at: string
+          district: string
+          full_name: string
+          id: string
+          region: string
+          wallet_id: string
+          working_days: string | null
+          working_hours: string | null
+        }
+        Insert: {
+          about_me?: string | null
+          charges?: number
+          created_at?: string
+          district: string
+          full_name: string
+          id: string
+          region: string
+          wallet_id: string
+          working_days?: string | null
+          working_hours?: string | null
+        }
+        Update: {
+          about_me?: string | null
+          charges?: number
+          created_at?: string
+          district?: string
+          full_name?: string
+          id?: string
+          region?: string
+          wallet_id?: string
+          working_days?: string | null
+          working_hours?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           agent_id: string | null
@@ -39,6 +78,48 @@ export type Database = {
           requested_date?: string
           requested_time?: string
           status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          created_at: string
+          district: string
+          full_name: string
+          id: string
+          region: string
+          wallet_id: string
+        }
+        Insert: {
+          created_at?: string
+          district: string
+          full_name: string
+          id: string
+          region: string
+          wallet_id: string
+        }
+        Update: {
+          created_at?: string
+          district?: string
+          full_name?: string
+          id?: string
+          region?: string
+          wallet_id?: string
         }
         Relationships: []
       }
@@ -79,48 +160,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          about_me: string | null
-          charges: number | null
-          created_at: string
-          district: string
-          full_name: string
-          id: string
-          region: string
-          role: Database["public"]["Enums"]["user_role"]
-          wallet_id: string
-          working_days: string | null
-          working_hours: string | null
-        }
-        Insert: {
-          about_me?: string | null
-          charges?: number | null
-          created_at?: string
-          district: string
-          full_name: string
-          id: string
-          region: string
-          role: Database["public"]["Enums"]["user_role"]
-          wallet_id: string
-          working_days?: string | null
-          working_hours?: string | null
-        }
-        Update: {
-          about_me?: string | null
-          charges?: number | null
-          created_at?: string
-          district?: string
-          full_name?: string
-          id?: string
-          region?: string
-          role?: Database["public"]["Enums"]["user_role"]
-          wallet_id?: string
-          working_days?: string | null
-          working_hours?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {
