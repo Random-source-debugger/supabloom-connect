@@ -55,7 +55,6 @@ const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
               working_days: (values as AgentFormData).workingDays,
             }),
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
@@ -65,7 +64,9 @@ const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
         title: "Success",
         description: "Please check your email to verify your account.",
       });
-      navigate("/");
+      
+      // Redirect agents to profile page, customers to home page
+      navigate(role === "agent" ? "/profile" : "/");
     } catch (error) {
       toast({
         variant: "destructive",

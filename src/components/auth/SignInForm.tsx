@@ -37,14 +37,16 @@ const SignInForm = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
 
       if (error) throw error;
 
-      navigate("/");
+      // Check user role and redirect accordingly
+      const role = data.user?.user_metadata?.role;
+      navigate(role === "agent" ? "/profile" : "/");
     } catch (error) {
       toast({
         variant: "destructive",

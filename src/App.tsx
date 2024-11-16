@@ -13,8 +13,14 @@ import { useAuth } from "./hooks/useAuth";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session } = useAuth();
+  const { session, userDetails } = useAuth();
   if (!session) return <Navigate to="/auth" replace />;
+  
+  // Redirect agents to profile page if they try to access home
+  if (userDetails?.role === "agent" && window.location.pathname === "/") {
+    return <Navigate to="/profile" replace />;
+  }
+  
   return <>{children}</>;
 };
 
