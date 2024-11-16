@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { ethers } from 'ethers';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { ethers } from 'https://esm.sh/ethers@6'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
