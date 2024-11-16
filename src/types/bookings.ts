@@ -1,4 +1,5 @@
 import { Tables } from "@/integrations/supabase/types";
+import { Agent, Customer } from "./database";
 
 export type Appointment = {
   id: string;
@@ -9,7 +10,7 @@ export type Appointment = {
   status: string | null;
   created_at: string;
   payment_status: string | null;
-  agent: Tables<"users">;
-  customer: Tables<"users">;
+  agent: Agent;
+  customer: Customer;
   escrow_payment?: Tables<"escrow_payments">;
 };

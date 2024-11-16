@@ -42,7 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchUserDetails = async (userId: string) => {
-    const role = (await supabase.auth.getUser()).data.user?.user_metadata?.role || "customer";
+    const { data: { user } } = await supabase.auth.getUser();
+    const role = user?.user_metadata?.role || "customer";
     
     const { data } = await supabase
       .from(role === "agent" ? "agents" : "customers")
@@ -50,7 +51,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .eq("id", userId)
       .single();
 
-    setUserDetails(data ? { ...data, role } : null);
+    if (data) {
+      setUserDetails({ ...data, role } as UserDetails);
+    }
   };
 
   const signOut = async () => {
