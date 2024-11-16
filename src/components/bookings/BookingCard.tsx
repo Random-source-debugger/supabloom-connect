@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/components/ui/use-toast";
 import { Appointment } from "@/types/bookings";
 
 interface BookingCardProps {
@@ -39,8 +38,8 @@ const BookingCard = ({
           <h3 className="text-xl font-semibold">
             Appointment with{" "}
             {userDetails?.role === "customer"
-              ? appointment.agent.full_name
-              : appointment.customer.full_name}
+              ? appointment.agent?.full_name
+              : appointment.customer?.full_name}
           </h3>
           <p className="text-gray-600">
             Date: {format(new Date(appointment.requested_date), "PPP")}
