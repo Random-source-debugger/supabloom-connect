@@ -9,7 +9,7 @@ const Bookings = () => {
   const { userDetails } = useAuth();
   const { toast } = useToast();
 
-  const { data: appointments, refetch } = useQuery({
+  const { data: appointments, refetch, isLoading } = useQuery({
     queryKey: ["appointments", userDetails?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -17,8 +17,8 @@ const Bookings = () => {
         .select(
           `
           *,
-          agent:users!appointments_agent_id_fkey(*),
-          customer:users!appointments_customer_id_fkey(*),
+          agent:agents!appointments_agent_id_fkey(*),
+          customer:customers!appointments_customer_id_fkey(*),
           escrow_payment:escrow_payments(*)
         `
         )
@@ -133,18 +133,28 @@ const Bookings = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">My Bookings</h2>
-      <div className="grid gap-6">
-        {appointments?.map((appointment) => (
-          <BookingCard
-            key={appointment.id}
-            appointment={appointment}
-            onReschedule={handleReschedule}
-            onCancel={handleCancel}
-            onPayment={handlePayment}
-            onPaymentConfirmation={handlePaymentConfirmation}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-8">Loading bookings...</div>
+      ) : appointments?.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No bookings found. {userDetails?.role === "customer" 
+            ? "Book an appointment with an agent to get started!" 
+            : "You haven't received any booking requests yet."}
+        </div>
+      ) : (
+        <div className="grid gap-6">
+          {appointments?.map((appointment) => (
+            <BookingCard
+              key={appointment.id}
+              appointment={appointment}
+              onReschedule={handleReschedule}
+              onCancel={handleCancel}
+              onPayment={handlePayment}
+              onPaymentConfirmation={handlePaymentConfirmation}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

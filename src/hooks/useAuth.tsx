@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
+import { Agent, Customer } from "@/types/database";
 
-type UserDetails = Tables<"users">;
+type UserDetails = (Agent | Customer) & { role: "agent" | "customer" };
 
 interface AuthContextType {
   session: Session | null;
@@ -42,12 +42,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchUserDetails = async (userId: string) => {
+    const role = (await supabase.auth.getUser()).data.user?.user_metadata?.role || "customer";
+    
     const { data } = await supabase
-      .from("users")
+      .from(role === "agent" ? "agents" : "customers")
       .select("*")
       .eq("id", userId)
       .single();
-    setUserDetails(data);
+
+    setUserDetails(data ? { ...data, role } : null);
   };
 
   const signOut = async () => {

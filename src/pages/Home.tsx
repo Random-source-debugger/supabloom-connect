@@ -18,10 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/components/ui/use-toast";
-import { Tables } from "@/integrations/supabase/types";
-
-type Agent = Tables<"users">;
+import { useToast } from "@/hooks/use-toast";
+import { Agent } from "@/types/database";
 
 const Home = () => {
   const { userDetails } = useAuth();
@@ -31,13 +29,12 @@ const Home = () => {
   const [workingDays, setWorkingDays] = useState<string>();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
-  const { data: agents } = useQuery({
+  const { data: agents, isLoading } = useQuery({
     queryKey: ["agents", workingHours, workingDays],
     queryFn: async () => {
       let query = supabase
-        .from("users")
-        .select("*")
-        .eq("role", "agent");
+        .from("agents")
+        .select("*");
 
       if (workingHours) {
         query = query.eq("working_hours", workingHours);
@@ -113,8 +110,15 @@ const Home = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {agents?.map((agent) => (
+      {isLoading ? (
+        <div className="text-center py-8">Loading agents...</div>
+      ) : agents?.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No agents found matching your criteria
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {agents?.map((agent) => (
           <div
             key={agent.id}
             className="border rounded-lg p-6 space-y-4 hover:shadow-lg transition-shadow"
@@ -160,8 +164,9 @@ const Home = () => {
               </DialogContent>
             </Dialog>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
