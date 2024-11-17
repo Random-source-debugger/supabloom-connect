@@ -36,7 +36,7 @@ const Bookings = () => {
       .from("appointments")
       .update({
         requested_date: date.toISOString().split("T")[0],
-        status: "rescheduled"
+        status: "rescheduled",
       })
       .eq("id", appointment.id);
 
@@ -65,7 +65,8 @@ const Bookings = () => {
     const { error } = await supabase
       .from("appointments")
       .update({
-        status: "cancelled"
+        status: "cancelled",
+        payment_status: "cancelled"
       })
       .eq("id", appointment.id);
 
