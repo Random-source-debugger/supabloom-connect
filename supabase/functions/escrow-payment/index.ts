@@ -6,13 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface EscrowPayment {
-  appointment_id: string;
-  amount: number;
-  status: 'pending' | 'completed' | 'refunded';
-  transaction_hash?: string;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,18 +14,25 @@ Deno.serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { appointment_id, action } = await req.json();
 
+    // Get appointment details with agent and customer info
     const { data: appointment, error: appointmentError } = await supabaseClient
       .from('appointments')
-      .select('*, agent:users!appointments_agent_id_fkey(*), customer:users!appointments_customer_id_fkey(*)')
+      .select(`
+        *,
+        agent:agents(*),
+        customer:customers(*)
+      `)
       .eq('id', appointment_id)
       .single();
 
-    if (appointmentError) throw appointmentError;
+    if (appointmentError) {
+      throw new Error(`Error fetching appointment: ${appointmentError.message}`);
+    }
 
     // Initialize ethers provider
     const provider = new ethers.JsonRpcProvider(Deno.env.get('ETHEREUM_RPC_URL'));
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
             status: 'pending'
           });
 
-        if (error) throw error;
+        if (error) throw new Error(`Error creating escrow payment: ${error.message}`);
 
         // Update appointment payment status
         await supabaseClient
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
           })
           .eq('appointment_id', appointment_id);
 
-        if (error) throw error;
+        if (error) throw new Error(`Error updating escrow payment: ${error.message}`);
 
         // Update appointment status
         await supabaseClient
@@ -108,14 +108,14 @@ Deno.serve(async (req) => {
           })
           .eq('appointment_id', appointment_id);
 
-        if (error) throw error;
+        if (error) throw new Error(`Error updating escrow payment: ${error.message}`);
 
         // Update appointment status
         await supabaseClient
           .from('appointments')
           .update({
             payment_status: 'refunded',
-            status: 'unsuccessful'
+            status: 'cancelled'
           })
           .eq('id', appointment_id);
 

@@ -11,6 +11,8 @@ import {
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Appointment } from "@/types/bookings";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingCardProps {
   appointment: Appointment;
@@ -28,8 +30,95 @@ const BookingCard = ({
   onPaymentConfirmation,
 }: BookingCardProps) => {
   const { userDetails } = useAuth();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReschedule = async () => {
+    if (!selectedDate) {
+      toast({
+        title: "Please select a date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await onReschedule(appointment, selectedDate);
+      setIsDialogOpen(false);
+      toast({
+        title: "Appointment rescheduled successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to reschedule appointment",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setIsLoading(true);
+    try {
+      await onCancel(appointment);
+      toast({
+        title: "Appointment cancelled successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to cancel appointment",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    setIsLoading(true);
+    try {
+      await onPayment(appointment);
+      toast({
+        title: "Payment initiated",
+        description: "The payment is now in escrow.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to process payment",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentConfirmation = async (success: boolean) => {
+    setIsLoading(true);
+    try {
+      await onPaymentConfirmation(appointment, success);
+      toast({
+        title: success ? "Payment completed" : "Payment refunded",
+        description: success
+          ? "The payment has been released to the agent."
+          : "The payment has been refunded to your wallet.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to process payment confirmation",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="border rounded-lg p-6 space-y-4 hover:shadow-lg transition-shadow">
@@ -56,7 +145,7 @@ const BookingCard = ({
               <>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full" disabled={isLoading}>
                       Reschedule
                     </Button>
                   </DialogTrigger>
@@ -73,13 +162,8 @@ const BookingCard = ({
                       />
                       <Button
                         className="w-full"
-                        onClick={() => {
-                          if (selectedDate) {
-                            onReschedule(appointment, selectedDate);
-                            setIsDialogOpen(false);
-                          }
-                        }}
-                        disabled={!selectedDate}
+                        onClick={handleReschedule}
+                        disabled={!selectedDate || isLoading}
                       >
                         Confirm Reschedule
                       </Button>
@@ -89,7 +173,8 @@ const BookingCard = ({
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={() => onCancel(appointment)}
+                  onClick={handleCancel}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
@@ -101,7 +186,8 @@ const BookingCard = ({
             appointment.payment_status === "unpaid" && (
               <Button
                 className="w-full"
-                onClick={() => onPayment(appointment)}
+                onClick={handlePayment}
+                disabled={isLoading}
               >
                 Pay Now
               </Button>
@@ -111,14 +197,16 @@ const BookingCard = ({
               <div className="space-y-2">
                 <Button
                   className="w-full"
-                  onClick={() => onPaymentConfirmation(appointment, true)}
+                  onClick={() => handlePaymentConfirmation(true)}
+                  disabled={isLoading}
                 >
                   Confirm Successful Meeting
                 </Button>
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={() => onPaymentConfirmation(appointment, false)}
+                  onClick={() => handlePaymentConfirmation(false)}
+                  disabled={isLoading}
                 >
                   Report Unsuccessful Meeting
                 </Button>

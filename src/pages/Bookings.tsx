@@ -17,8 +17,8 @@ const Bookings = () => {
         .select(
           `
           *,
-          agent:agents!appointments_agent_id_fkey(*),
-          customer:customers!appointments_customer_id_fkey(*),
+          agent:agents(*),
+          customer:customers(*),
           escrow_payment:escrow_payments(*)
         `
         )
@@ -27,7 +27,6 @@ const Bookings = () => {
         );
 
       if (error) throw error;
-
       return data as unknown as Appointment[];
     },
   });
@@ -41,40 +40,38 @@ const Bookings = () => {
       .eq("id", appointment.id);
 
     if (error) {
-      toast({
-        title: "Failed to reschedule appointment",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+      throw new Error(error.message);
     }
 
-    toast({
-      title: "Appointment rescheduled",
-    });
     refetch();
   };
 
   const handleCancel = async (appointment: Appointment) => {
-    const { error } = await supabase
-      .from("appointments")
-      .update({
-        status: "cancelled",
-      })
-      .eq("id", appointment.id);
+    // If there's a pending payment, initiate refund
+    if (appointment.payment_status === "pending") {
+      try {
+        const response = await supabase.functions.invoke('escrow-payment', {
+          body: { appointment_id: appointment.id, action: 'refund' }
+        });
 
-    if (error) {
-      toast({
-        title: "Failed to cancel appointment",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+        if (response.error) throw new Error(response.error.message);
+      } catch (error) {
+        throw new Error(`Failed to process refund: ${error.message}`);
+      }
+    } else {
+      // If no payment is involved, just cancel the appointment
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          status: "cancelled",
+        })
+        .eq("id", appointment.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
     }
 
-    toast({
-      title: "Appointment cancelled",
-    });
     refetch();
   };
 
@@ -86,17 +83,9 @@ const Bookings = () => {
 
       if (response.error) throw new Error(response.error.message);
 
-      toast({
-        title: "Payment initiated",
-        description: "The payment is now in escrow.",
-      });
       refetch();
     } catch (error) {
-      toast({
-        title: "Failed to process payment",
-        description: error.message,
-        variant: "destructive",
-      });
+      throw new Error(`Failed to process payment: ${error.message}`);
     }
   };
 
@@ -114,19 +103,9 @@ const Bookings = () => {
 
       if (response.error) throw new Error(response.error.message);
 
-      toast({
-        title: success ? "Payment completed" : "Payment refunded",
-        description: success
-          ? "The payment has been released to the agent."
-          : "The payment has been refunded to your wallet.",
-      });
       refetch();
     } catch (error) {
-      toast({
-        title: "Failed to process payment confirmation",
-        description: error.message,
-        variant: "destructive",
-      });
+      throw new Error(`Failed to process payment confirmation: ${error.message}`);
     }
   };
 
