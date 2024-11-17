@@ -36,6 +36,7 @@ const Bookings = () => {
       .from("appointments")
       .update({
         requested_date: date.toISOString().split("T")[0],
+        status: "rescheduled"
       })
       .eq("id", appointment.id);
 
@@ -43,7 +44,7 @@ const Bookings = () => {
       throw new Error(error.message);
     }
 
-    refetch();
+    await refetch();
   };
 
   const handleCancel = async (appointment: Appointment) => {
@@ -58,21 +59,21 @@ const Bookings = () => {
       } catch (error) {
         throw new Error(`Failed to process refund: ${error.message}`);
       }
-    } else {
-      // If no payment is involved, just cancel the appointment
-      const { error } = await supabase
-        .from("appointments")
-        .update({
-          status: "cancelled",
-        })
-        .eq("id", appointment.id);
+    }
+    
+    // Update appointment status
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        status: "cancelled"
+      })
+      .eq("id", appointment.id);
 
-      if (error) {
-        throw new Error(error.message);
-      }
+    if (error) {
+      throw new Error(error.message);
     }
 
-    refetch();
+    await refetch();
   };
 
   const handlePayment = async (appointment: Appointment) => {
@@ -83,7 +84,7 @@ const Bookings = () => {
 
       if (response.error) throw new Error(response.error.message);
 
-      refetch();
+      await refetch();
     } catch (error) {
       throw new Error(`Failed to process payment: ${error.message}`);
     }
@@ -103,7 +104,7 @@ const Bookings = () => {
 
       if (response.error) throw new Error(response.error.message);
 
-      refetch();
+      await refetch();
     } catch (error) {
       throw new Error(`Failed to process payment confirmation: ${error.message}`);
     }

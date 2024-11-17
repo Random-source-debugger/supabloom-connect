@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Appointment } from "@/types/bookings";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingActionsProps {
   appointment: Appointment;
@@ -60,6 +61,24 @@ const BookingActions = ({
     }
   };
 
+  const handleCancel = async () => {
+    setIsLoading(true);
+    try {
+      await onCancel(appointment);
+      toast({
+        title: "Appointment cancelled successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to cancel appointment",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-2">
       {appointment.status !== "cancelled" &&
@@ -95,7 +114,7 @@ const BookingActions = ({
             <Button
               variant="destructive"
               className="w-full"
-              onClick={() => onCancel(appointment)}
+              onClick={handleCancel}
               disabled={isLoading}
             >
               Cancel
