@@ -38,23 +38,27 @@ const SignUpForm = ({ role }: { role: "customer" | "agent" }) => {
   const onSubmit = async (values: FormData) => {
     try {
       setIsLoading(true);
+      
+      // Create the metadata object
+      const metadata = {
+        full_name: values.fullName,
+        region: values.region,
+        district: values.district,
+        wallet_id: values.walletId,
+        role,
+        ...(role === "agent" && {
+          charges: (values as AgentFormData).charges,
+          about_me: (values as AgentFormData).aboutMe,
+          working_hours: (values as AgentFormData).workingHours,
+          working_days: (values as AgentFormData).workingDays,
+        }),
+      };
+
       const { error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          data: {
-            full_name: values.fullName,
-            region: values.region,
-            district: values.district,
-            wallet_id: values.walletId,
-            role,
-            ...(role === "agent" && {
-              charges: (values as AgentFormData).charges,
-              about_me: (values as AgentFormData).aboutMe,
-              working_hours: (values as AgentFormData).workingHours,
-              working_days: (values as AgentFormData).workingDays,
-            }),
-          },
+          data: metadata,
         },
       });
 
