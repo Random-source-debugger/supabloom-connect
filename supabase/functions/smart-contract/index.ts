@@ -6,7 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // Replace after deployment
+// Contract configuration
+const CONTRACT_ADDRESS = "0x123..."; // Replace with your deployed contract address
 const CONTRACT_ABI = [
   "function depositPayment(address payable _agent) public payable returns (uint256)",
   "function refundPayment(uint256 bookingId) public",
@@ -15,19 +16,27 @@ const CONTRACT_ABI = [
 ];
 
 Deno.serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    const { appointment_id, action } = await req.json()
+    
+    if (!appointment_id || !action) {
+      throw new Error('Missing required parameters: appointment_id or action')
+    }
+
+    console.log('Processing smart contract action:', action, 'for appointment:', appointment_id)
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { appointment_id, action } = await req.json()
-
-    // Get appointment details with agent and customer info
+    // Get appointment details
     const { data: appointment, error: appointmentError } = await supabaseClient
       .from('appointments')
       .select(`
@@ -42,58 +51,41 @@ Deno.serve(async (req) => {
       throw new Error(`Error fetching appointment: ${appointmentError.message}`)
     }
 
-    // Initialize ethers provider and contract
+    if (!appointment) {
+      throw new Error('Appointment not found')
+    }
+
+    // Initialize ethers provider and wallet
     const provider = new ethers.JsonRpcProvider(Deno.env.get('ETHEREUM_RPC_URL'))
     const wallet = new ethers.Wallet(Deno.env.get('ESCROW_PRIVATE_KEY') ?? '', provider)
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet)
 
-    console.log('Processing smart contract action:', action)
+    console.log('Ethereum connection initialized')
 
+    let transaction
     switch (action) {
       case 'deposit': {
-        const tx = await contract.depositPayment(appointment.agent.wallet_id, {
-          value: ethers.parseEther(appointment.agent.charges.toString())
-        })
-        await tx.wait()
+        if (!appointment.agent?.wallet_id) {
+          throw new Error('Agent wallet address not found')
+        }
 
-        // Update appointment payment status
-        await supabaseClient
-          .from('appointments')
-          .update({ payment_status: 'pending' })
-          .eq('id', appointment_id)
-
+        transaction = await contract.depositPayment(
+          appointment.agent.wallet_id,
+          { value: ethers.parseEther(appointment.agent.charges.toString()) }
+        )
+        console.log('Deposit transaction initiated:', transaction.hash)
         break
       }
 
       case 'refund': {
-        const tx = await contract.refundPayment(appointment_id)
-        await tx.wait()
-
-        // Update appointment status
-        await supabaseClient
-          .from('appointments')
-          .update({
-            payment_status: 'refunded',
-            status: 'cancelled'
-          })
-          .eq('id', appointment_id)
-
+        transaction = await contract.refundPayment(appointment_id)
+        console.log('Refund transaction initiated:', transaction.hash)
         break
       }
 
       case 'release': {
-        const tx = await contract.releasePayment(appointment_id)
-        await tx.wait()
-
-        // Update appointment status
-        await supabaseClient
-          .from('appointments')
-          .update({
-            payment_status: 'paid',
-            status: 'completed'
-          })
-          .eq('id', appointment_id)
-
+        transaction = await contract.releasePayment(appointment_id)
+        console.log('Release transaction initiated:', transaction.hash)
         break
       }
 
@@ -101,8 +93,29 @@ Deno.serve(async (req) => {
         throw new Error('Invalid action')
     }
 
+    // Wait for transaction confirmation
+    const receipt = await transaction.wait()
+    console.log('Transaction confirmed:', receipt.hash)
+
+    // Update appointment status in database
+    const { error: updateError } = await supabaseClient
+      .from('appointments')
+      .update({
+        payment_status: action === 'deposit' ? 'pending' : 
+                       action === 'refund' ? 'refunded' : 
+                       action === 'release' ? 'paid' : 'unknown'
+      })
+      .eq('id', appointment_id)
+
+    if (updateError) {
+      throw new Error(`Error updating appointment status: ${updateError.message}`)
+    }
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        transaction: receipt.hash
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -111,7 +124,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in smart-contract function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
