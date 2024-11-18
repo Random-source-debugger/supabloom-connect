@@ -6,8 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const CONTRACT_ADDRESS = '0x123...'; // Replace with your deployed contract address
-const CONTRACT_ABI = [/* Replace with your contract ABI */];
+const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // Replace after deployment
+const CONTRACT_ABI = [
+  "function depositPayment(address payable _agent) public payable returns (uint256)",
+  "function refundPayment(uint256 bookingId) public",
+  "function releasePayment(uint256 bookingId) public",
+  "function getEscrowBalance() public view returns (uint256)"
+];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
