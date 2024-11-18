@@ -12,14 +12,24 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('Processing escrow payment request');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { appointment_id, action } = await req.json()
+    // Parse and validate request body
+    const { appointment_id, action, amount } = await req.json()
+    
+    if (!appointment_id || !action || !amount) {
+      console.error('Missing required parameters:', { appointment_id, action, amount });
+      throw new Error('Missing required parameters: appointment_id, action, or amount')
+    }
 
-    // Get appointment details with agent and customer info
+    console.log('Processing action:', action, 'for appointment:', appointment_id);
+
+    // Get appointment details
     const { data: appointment, error: appointmentError } = await supabaseClient
       .from('appointments')
       .select(`
@@ -31,6 +41,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (appointmentError) {
+      console.error('Error fetching appointment:', appointmentError);
       throw new Error(`Error fetching appointment: ${appointmentError.message}`)
     }
 
@@ -40,6 +51,7 @@ Deno.serve(async (req) => {
 
     console.log('Processing payment action:', action)
 
+    let transaction;
     switch (action) {
       case 'pay': {
         // Create escrow payment record
@@ -47,11 +59,14 @@ Deno.serve(async (req) => {
           .from('escrow_payments')
           .insert({
             appointment_id,
-            amount: appointment.agent.charges,
+            amount,
             status: 'pending'
           })
 
-        if (error) throw new Error(`Error creating escrow payment: ${error.message}`)
+        if (error) {
+          console.error('Error creating escrow payment:', error);
+          throw new Error(`Error creating escrow payment: ${error.message}`)
+        }
 
         // Update appointment payment status
         await supabaseClient
@@ -64,24 +79,27 @@ Deno.serve(async (req) => {
 
       case 'complete': {
         // Transfer funds to agent
-        const tx = await escrowWallet.sendTransaction({
+        transaction = await escrowWallet.sendTransaction({
           to: appointment.agent.wallet_id,
-          value: ethers.parseEther(appointment.agent.charges.toString())
+          value: ethers.parseEther(amount.toString())
         })
 
-        console.log('Payment completed, transaction hash:', tx.hash)
+        console.log('Payment completed, transaction hash:', transaction.hash)
 
         // Update escrow payment record
         const { error } = await supabaseClient
           .from('escrow_payments')
           .update({
             status: 'completed',
-            transaction_hash: tx.hash,
+            transaction_hash: transaction.hash,
             released_at: new Date().toISOString()
           })
           .eq('appointment_id', appointment_id)
 
-        if (error) throw new Error(`Error updating escrow payment: ${error.message}`)
+        if (error) {
+          console.error('Error updating escrow payment:', error);
+          throw new Error(`Error updating escrow payment: ${error.message}`)
+        }
 
         // Update appointment status
         await supabaseClient
@@ -97,24 +115,27 @@ Deno.serve(async (req) => {
 
       case 'refund': {
         // Return funds to customer
-        const tx = await escrowWallet.sendTransaction({
+        transaction = await escrowWallet.sendTransaction({
           to: appointment.customer.wallet_id,
-          value: ethers.parseEther(appointment.agent.charges.toString())
+          value: ethers.parseEther(amount.toString())
         })
 
-        console.log('Refund completed, transaction hash:', tx.hash)
+        console.log('Refund completed, transaction hash:', transaction.hash)
 
         // Update escrow payment record
         const { error } = await supabaseClient
           .from('escrow_payments')
           .update({
             status: 'refunded',
-            transaction_hash: tx.hash,
+            transaction_hash: transaction.hash,
             released_at: new Date().toISOString()
           })
           .eq('appointment_id', appointment_id)
 
-        if (error) throw new Error(`Error updating escrow payment: ${error.message}`)
+        if (error) {
+          console.error('Error updating escrow payment:', error);
+          throw new Error(`Error updating escrow payment: ${error.message}`)
+        }
 
         // Update appointment status
         await supabaseClient
@@ -133,7 +154,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        transaction: transaction?.hash
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -142,7 +166,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in escrow-payment function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
