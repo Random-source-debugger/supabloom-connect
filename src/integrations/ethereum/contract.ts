@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS"; // You'll need to replace this after deployment
+export const CONTRACT_ADDRESS = "0x123..."; // Replace with your deployed contract address
 
 export const CONTRACT_ABI = [
   // Deposit payment from customer to escrow
