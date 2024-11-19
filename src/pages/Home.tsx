@@ -85,18 +85,23 @@ const Home = () => {
       const receipt = await tx.wait();
       console.log("Payment confirmed:", receipt.hash);
 
-      // Create appointment
-      const { data: appointment, error } = await supabase.from("appointments").insert({
-        agent_id: agent.id,
-        customer_id: userDetails?.id,
-        requested_date: selectedDate.toISOString().split("T")[0],
-        requested_time: "09:00:00",
-        payment_status: "pending"
-      }).select().single();
+      // First create the appointment
+      const { data: appointment, error: appointmentError } = await supabase
+        .from("appointments")
+        .insert({
+          agent_id: agent.id,
+          customer_id: userDetails?.id,
+          requested_date: selectedDate.toISOString().split("T")[0],
+          requested_time: "09:00:00",
+          status: "pending",
+          payment_status: "pending" // Explicitly set the payment status
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (appointmentError) throw appointmentError;
 
-      // Create escrow payment record
+      // Then create the escrow payment record
       const { error: escrowError } = await supabase
         .from("escrow_payments")
         .insert({
