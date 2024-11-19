@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Appointment } from "@/types/bookings";
 import { supabase } from "@/integrations/supabase/client";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/integrations/ethereum/contract";
 
 interface CancelActionProps {
   appointment: Appointment;
@@ -18,18 +20,31 @@ export const CancelAction = ({ appointment, onCancel }: CancelActionProps) => {
     try {
       console.log("Cancelling appointment:", appointment.id);
       
-      // If there's a pending payment, initiate refund
+      // If there's a pending payment in escrow, initiate refund
       if (appointment.payment_status === "pending") {
-        console.log("Initiating refund for appointment:", appointment.id);
-        const response = await supabase.functions.invoke('escrow-payment', {
-          body: { 
-            appointment_id: appointment.id, 
-            action: 'refund',
-            amount: appointment.agent.charges
-          }
-        });
+        if (!window.ethereum) {
+          throw new Error("Please install MetaMask to process refund");
+        }
 
-        if (response.error) throw new Error(response.error.message);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+        const tx = await contract.refundPayment(appointment.id);
+        console.log("Refund transaction initiated:", tx.hash);
+        const receipt = await tx.wait();
+        console.log("Refund confirmed:", receipt.hash);
+
+        // Update escrow payment record
+        const { error: escrowError } = await supabase
+          .from("escrow_payments")
+          .update({
+            status: "refunded",
+            released_at: new Date().toISOString()
+          })
+          .eq("appointment_id", appointment.id);
+
+        if (escrowError) throw escrowError;
       }
 
       // Update appointment status
@@ -46,6 +61,7 @@ export const CancelAction = ({ appointment, onCancel }: CancelActionProps) => {
       await onCancel(appointment);
       toast({
         title: "Appointment cancelled successfully",
+        description: appointment.payment_status === "pending" ? "Your payment has been refunded" : undefined,
       });
     } catch (error) {
       console.error("Cancel error:", error);

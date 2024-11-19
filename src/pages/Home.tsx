@@ -20,6 +20,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Agent } from "@/types/database";
+import { ethers } from "ethers";
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/integrations/ethereum/contract";
 
 const Home = () => {
   const { userDetails } = useAuth();
@@ -58,27 +60,67 @@ const Home = () => {
       return;
     }
 
-    const { error } = await supabase.from("appointments").insert({
-      agent_id: agent.id,
-      customer_id: userDetails?.id,
-      requested_date: selectedDate.toISOString().split("T")[0],
-      requested_time: "09:00:00",
-    });
+    try {
+      console.log("Initiating booking with payment for agent:", agent.id);
+      
+      if (!window.ethereum) {
+        throw new Error("Please install MetaMask to make bookings");
+      }
 
-    if (error) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      console.log("Connected to contract at:", CONTRACT_ADDRESS);
+      console.log("Agent wallet:", agent.wallet_id);
+      console.log("Payment amount:", agent.charges);
+
+      const paymentAmount = ethers.parseEther(agent.charges.toString());
+      const tx = await contract.depositPayment(
+        agent.wallet_id,
+        { value: paymentAmount }
+      );
+      
+      console.log("Payment transaction initiated:", tx.hash);
+      const receipt = await tx.wait();
+      console.log("Payment confirmed:", receipt.hash);
+
+      // Create appointment
+      const { data: appointment, error } = await supabase.from("appointments").insert({
+        agent_id: agent.id,
+        customer_id: userDetails?.id,
+        requested_date: selectedDate.toISOString().split("T")[0],
+        requested_time: "09:00:00",
+        payment_status: "pending"
+      }).select().single();
+
+      if (error) throw error;
+
+      // Create escrow payment record
+      const { error: escrowError } = await supabase
+        .from("escrow_payments")
+        .insert({
+          appointment_id: appointment.id,
+          amount: agent.charges,
+          status: "pending",
+          transaction_hash: receipt.hash
+        });
+
+      if (escrowError) throw escrowError;
+
       toast({
-        title: "Failed to book appointment",
+        title: "Booking confirmed",
+        description: "Your payment is now in escrow",
+      });
+      setSelectedAgent(null);
+    } catch (error) {
+      console.error("Booking error:", error);
+      toast({
+        title: "Failed to process booking",
         description: error.message,
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Booking request sent",
-      description: "The agent will be notified of your request.",
-    });
-    setSelectedAgent(null);
   };
 
   if (userDetails?.role !== "customer") {

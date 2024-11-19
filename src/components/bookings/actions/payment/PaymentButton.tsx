@@ -18,7 +18,7 @@ export const PaymentButton = ({ appointment, onPayment }: PaymentButtonProps) =>
   const handlePayment = async () => {
     setIsLoading(true);
     try {
-      console.log("Initiating payment for appointment:", appointment.id);
+      console.log("Releasing payment for appointment:", appointment.id);
       
       if (!window.ethereum) {
         throw new Error("Please install MetaMask to make payments");
@@ -27,48 +27,41 @@ export const PaymentButton = ({ appointment, onPayment }: PaymentButtonProps) =>
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      
-      console.log("Connected to contract at:", CONTRACT_ADDRESS);
-      console.log("Agent wallet:", appointment.agent.wallet_id);
-      console.log("Payment amount:", appointment.agent.charges);
 
-      const paymentAmount = ethers.parseEther(appointment.agent.charges.toString());
-      const tx = await contract.depositPayment(
-        appointment.agent.wallet_id,
-        { value: paymentAmount }
-      );
-      
-      console.log("Payment transaction initiated:", tx.hash);
+      const tx = await contract.releasePayment(appointment.id);
+      console.log("Release payment transaction initiated:", tx.hash);
       const receipt = await tx.wait();
-      console.log("Payment confirmed:", receipt.hash);
+      console.log("Payment release confirmed:", receipt.hash);
 
       const { error: dbError } = await supabase
         .from("appointments")
-        .update({ payment_status: "pending" })
+        .update({ 
+          payment_status: "paid",
+          status: "completed"
+        })
         .eq("id", appointment.id);
 
       if (dbError) throw dbError;
 
       const { error: escrowError } = await supabase
         .from("escrow_payments")
-        .insert({
-          appointment_id: appointment.id,
-          amount: appointment.agent.charges,
-          status: "pending",
-          transaction_hash: receipt.hash
-        });
+        .update({
+          status: "released",
+          released_at: new Date().toISOString()
+        })
+        .eq("appointment_id", appointment.id);
 
       if (escrowError) throw escrowError;
 
       await onPayment(appointment);
       toast({
-        title: "Payment processed successfully",
-        description: "Your payment is now in escrow",
+        title: "Payment released successfully",
+        description: "The payment has been sent to the agent",
       });
     } catch (error) {
       console.error("Payment error:", error);
       toast({
-        title: "Failed to process payment",
+        title: "Failed to release payment",
         description: error.message,
         variant: "destructive",
       });
@@ -83,7 +76,7 @@ export const PaymentButton = ({ appointment, onPayment }: PaymentButtonProps) =>
       onClick={handlePayment}
       disabled={isLoading}
     >
-      Pay Now
+      Release Payment
     </Button>
   );
 };
