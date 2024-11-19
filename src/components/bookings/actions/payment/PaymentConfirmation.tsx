@@ -31,18 +31,24 @@ export const PaymentConfirmation = ({
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      const { data: escrowPayment } = await supabase
+      // First get the escrow payment record
+      const { data: escrowPayment, error: escrowFetchError } = await supabase
         .from("escrow_payments")
         .select("*")
         .eq("appointment_id", appointment.id)
         .single();
 
-      if (!escrowPayment) {
+      if (escrowFetchError || !escrowPayment) {
         throw new Error("No escrow payment found for this appointment");
       }
 
+      console.log("Found escrow payment:", escrowPayment.id);
+
+      // Convert escrow payment ID to a number for the smart contract
+      const escrowPaymentNumber = parseInt(escrowPayment.id.replace(/-/g, ""), 16);
+      
       const tx = await contract[success ? "releasePayment" : "refundPayment"](
-        escrowPayment.id
+        escrowPaymentNumber
       );
       
       console.log("Confirmation transaction initiated:", tx.hash);
